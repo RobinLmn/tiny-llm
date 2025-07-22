@@ -1,12 +1,14 @@
+import re
 from enum import Enum
 from typing import List
 
 class TokenizerType(Enum):
     CHARACTER = "character"
+    WORD = "word"
 
 class Tokenizer:
     """Tokenizer"""
-    def __init__(self, tokenizer_type: TokenizerType = TokenizerType.CHARACTER):
+    def __init__(self, tokenizer_type: TokenizerType = TokenizerType.WORD):
         self.vocabulary = {'<UNK>': 0}
         self.inverted_vocabulary = {0: '<UNK>'}
         self.token_id = 1
@@ -14,7 +16,8 @@ class Tokenizer:
 
     def build_vocabulary(self, text: str):
         """Build a vocabulary mapping words to token IDs"""
-        for word in self._split(text):
+        words = list(set(self._split(text)))
+        for word in words:
             if word in self.vocabulary:
                 continue
             self.vocabulary[word] = self.token_id
@@ -32,7 +35,8 @@ class Tokenizer:
 
     def decode(self, tokens: List[int]) -> str:
         """Convert a list of token IDs to text"""
-        return ''.join([self.inverted_vocabulary[token] for token in tokens])
+        separator = ' ' if self.tokenizer_type == TokenizerType.WORD else ''
+        return separator.join([self.inverted_vocabulary[token] for token in tokens])
 
     @property
     def vocabulary_size(self) -> int:
@@ -43,5 +47,7 @@ class Tokenizer:
         """Splits a text into 'words' based on the tokenizer's type"""
         if self.tokenizer_type == TokenizerType.CHARACTER:
             return list(text)
+        elif self.tokenizer_type == TokenizerType.WORD:
+            return re.findall(r'\w+|[^\w\s]', text.lower())
         else:
             raise ValueError(f"Unknown tokenizer type {str(self.tokenizer_type)}")
