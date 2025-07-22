@@ -8,15 +8,15 @@ from core.transformer import TinyLLM
 @dataclass
 class ModelConfig:
     """Configuration for a TinyLLM model and training"""
-    sequence_length: int = 64
+    sequence_length: int = 128
     batch_size: int = 64
     epochs: int = 10
-    learning_rate: float = 1e-3
-    embedding_dimension: int = 128
-    head_number: int = 4
-    hidden_dimension: int = 256
-    layer_number: int = 4
-    max_sequence_length: int = 128
+    learning_rate: float = 1e-4
+    embedding_dimension: int = 64
+    head_number: int = 2
+    hidden_dimension: int = 128
+    layer_number: int = 2
+    max_sequence_length: int = 256
     max_generated_length: int = 50
     temperature: float = 0.8
     training_data_file: str = 'data/shakespeare.txt'

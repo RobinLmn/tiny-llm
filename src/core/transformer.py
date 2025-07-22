@@ -27,7 +27,7 @@ class TransformerBlock(nn.Module):
         self.feed_forward = FeedForward(embedding_dimension, hidden_dimension)
         self.attention_normalization_layer = nn.LayerNorm(embedding_dimension)
         self.feed_forward_normalization_layer = nn.LayerNorm(embedding_dimension)
-        self.dropout = nn.Dropout(0.1)
+        self.dropout = nn.Dropout(0.3)
 
     def forward(self, token_embeddings: torch.Tensor) -> torch.Tensor:
         """Apply transformer block with attention and feed-forward layers."""
