@@ -1,13 +1,13 @@
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
-from torch.optim import Adam
+from torch.optim import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from typing import Optional, Callable
 
 def train_model(model: nn.Module, dataloader: DataLoader, epochs: int, learning_rate: float, device: torch.device, training_callback: Optional[Callable[[int, int, float], None]] = None):
     """Train the model over a dataset"""
-    optimizer = Adam(model.parameters(), lr=learning_rate, weight_decay=1e-4)
+    optimizer = AdamW(model.parameters(), lr=learning_rate, weight_decay=1e-4)
     scheduler = CosineAnnealingLR(optimizer, T_max=epochs, eta_min=1e-6)
     loss_fn = nn.CrossEntropyLoss()
     model.train()
