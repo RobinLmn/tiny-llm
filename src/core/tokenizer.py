@@ -8,7 +8,7 @@ class TokenizerType(Enum):
 
 class Tokenizer:
     """Tokenizer"""
-    def __init__(self, tokenizer_type: TokenizerType = TokenizerType.WORD):
+    def __init__(self, tokenizer_type: TokenizerType):
         self.vocabulary = {'<UNK>': 0}
         self.inverted_vocabulary = {0: '<UNK>'}
         self.token_id = 1

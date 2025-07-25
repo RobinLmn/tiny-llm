@@ -1,15 +1,23 @@
 import torch
 import torch.nn as nn
+from dataclasses import dataclass
 
 from core.tokenizer import Tokenizer
 
-def generate_text(model: nn.Module, tokenizer: Tokenizer, prompt: str, max_length: int, temperature: float, device: torch.device) -> str:
+@dataclass
+class GenerationConfig:
+    """Configuration for text generation"""
+    maximum_length: float
+    temperature: float
+    device: torch.device
+
+def generate_text(model: nn.Module, tokenizer: Tokenizer, prompt: str, config: GenerationConfig) -> str:
     """Generate text based on a prompt"""
-    token_ids = torch.tensor(tokenizer.encode(prompt)).unsqueeze(0).to(device)
-    for _ in range(max_length):
+    token_ids = torch.tensor(tokenizer.encode(prompt)).unsqueeze(0).to(config.device)
+    for _ in range(config.maximum_length):
         logits = model(token_ids)
         logits = logits[0, -1, :]
-        logits = logits / temperature
+        logits = logits / config.temperature
 
         probabilities = torch.softmax(logits , dim=-1)
         next_token = torch.multinomial(probabilities, 1)

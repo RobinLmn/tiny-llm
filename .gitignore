@@ -48,6 +48,10 @@ venv.bak/
 *.swo
 *~
 
+# AI Agents
+.claude/
+.cursor/
+
 # OS
 .DS_Store
 .DS_Store?
