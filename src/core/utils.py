@@ -19,7 +19,7 @@ def load_model(config: ModelConfig, filename: str) -> Tuple[nn.Module, Tokenizer
     for key, value in saved_model['config'].items():
         setattr(config, key, value)
 
-    tokenizer = Tokenizer(config.tokenizer_type)
+    tokenizer = Tokenizer(saved_model['tokenizer_type'])
     tokenizer.vocabulary = saved_model['tokenizer_vocab']
     tokenizer.inverted_vocabulary = saved_model['tokenizer_inverse_vocab']
     

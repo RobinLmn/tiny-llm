@@ -7,7 +7,7 @@ from core.generation import GenerationConfig, generate_text
 from core.model import ModelConfig, create_model
 from core.tokenizer import Tokenizer, TokenizerType
 from core.training import TrainingConfig, train_model, get_batch
-from core.utils import save_model
+from core.utils import save_model, load_model
 
 training_data_file = "data/shakespeare.txt"
 training_split = 0.9
@@ -27,7 +27,7 @@ training_config = TrainingConfig(
     device=device,
 )
 generation_config = GenerationConfig(
-    maximum_length=50,
+    maximum_length=200,
     temperature=1.0,
     device=device,
 )
@@ -90,11 +90,17 @@ def train():
     save_model(model_config, model, tokenizer, "models/tiny-llm.pth")
     
     model.eval()
-    generated_text = generate_text(model, tokenizer, "", generation_config)
+    generated_text = generate_text(model, tokenizer, "ADAM:", generation_config)
+    print(f"Generated:\n\n{generated_text}")
+
+def test():
+    model, tokenizer = load_model(model_config, "models/tiny-llm.pth")
+    model.eval()
+    generated_text = generate_text(model, tokenizer, "ADAM:", generation_config)
     print(f"Generated:\n\n{generated_text}")
 
 if __name__ == "__main__":
     try:
-        train()
+        test()
     except KeyboardInterrupt:
         print("Shutting down...")
