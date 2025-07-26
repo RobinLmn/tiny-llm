@@ -28,11 +28,7 @@ MANIFEST
 *.ckpt
 
 # Data files
-*.txt
-*.csv
-*.json
 data/
-datasets/
 
 # Virtual environments
 venv/
@@ -40,6 +36,7 @@ env/
 ENV/
 env.bak/
 venv.bak/
+tiny-llm-env/
 
 # IDEs
 .vscode/
