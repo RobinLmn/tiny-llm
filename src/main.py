@@ -127,7 +127,7 @@ def test():
 
 if __name__ == "__main__":
     try:
-        download_text_dataset(dataset_name, dataset_sub, tokenizer, model_config, processor_number)
+        # download_text_dataset(dataset_name, dataset_sub, tokenizer, model_config, processor_number)
         train()
         test()
     except KeyboardInterrupt:
