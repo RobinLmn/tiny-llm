@@ -34,7 +34,7 @@ generation_config = GenerationConfig(
 )
 model_config = ModelConfig(
     embedding_dimension=512,
-    block_size=512,
+    block_size=1024,
     layer_number=8,
     head_number=8,
     hidden_dimension=4*512,
