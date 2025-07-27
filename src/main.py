@@ -1,3 +1,4 @@
+import os
 import time
 import torch
 import torch.nn as nn
@@ -9,6 +10,8 @@ from core.tokenizer import SubWordTokenizer
 from core.training import TrainingConfig, train_model
 from core.utils import save_model, load_model
 from core.dataset import download_text_dataset, load_text_dataset
+
+os.makedirs("models", exist_ok=True)
 
 log_file = "models/logs.txt"
 dataset_name = "wikitext"
