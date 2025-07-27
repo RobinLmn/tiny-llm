@@ -1,15 +1,16 @@
 import time
 import torch
 import torch.nn as nn
-from datasets import load_dataset, load_from_disk
-from torch.utils.data import DataLoader
+from rich.progress import Progress, TimeRemainingColumn, BarColumn, TextColumn, MofNCompleteColumn
 
 from core.generation import GenerationConfig, generate_text
 from core.model import ModelConfig, create_model
 from core.tokenizer import SubWordTokenizer
 from core.training import TrainingConfig, train_model
 from core.utils import save_model, load_model
+from core.dataset import download_text_dataset, load_text_dataset
 
+log_file = "models/logs.txt"
 dataset_name = "wikitext"
 dataset_sub = "wikitext-103-v1"
 processor_number = 4
@@ -19,11 +20,11 @@ batch_size = 12
 training_config = TrainingConfig(
     max_iterations=100000,
     betas=(0.9, 0.95),
-    max_learning_rate=3e-4,
-    min_learning_rate=3e-5,
+    max_learning_rate=6e-4,
+    min_learning_rate=6e-5,
     max_gradient_norm=1.0,
     weight_decay=0.1,
-    gradient_accumulation_steps=2,
+    gradient_accumulation_steps=4,
     device=device,
 )
 generation_config = GenerationConfig(
@@ -32,114 +33,101 @@ generation_config = GenerationConfig(
     device=device,
 )
 model_config = ModelConfig(
-    embedding_dimension=384,
-    block_size=512,
-    layer_number=6,
-    head_number=6,
-    hidden_dimension=4*384,
-    dropout=0.2,
+    embedding_dimension=768,
+    block_size=1024,
+    layer_number=12,
+    head_number=12,
+    hidden_dimension=4*768,
+    dropout=0.1,
     device=device,
 )
 
 start_time = time.time()
-
 tokenizer = SubWordTokenizer("gpt2")
+progress = Progress(
+    TextColumn("[bold blue]Training", justify="right"),
+    BarColumn(bar_width=None),
+    "[progress.percentage]{task.percentage:>3.1f}%",
+    "•",
+    MofNCompleteColumn(),
+    "•",
+    TimeRemainingColumn(),
+    expand=True
+)
 
-def create_training_callback(model_config: ModelConfig, training_config: TrainingConfig, model: nn.Module, validation_dataloader: DataLoader):
+def create_training_callback(model_config, training_config, model: nn.Module, validation_dataloader, log_file="training.log", evaluation_iterations=5):
     loss_fn = nn.CrossEntropyLoss()
+    task_id = progress.add_task("Training", total=training_config.max_iterations)
+
+    with open(log_file, "w") as f:
+        f.write(f"Model config: {model_config.embedding_dimension}d, {model_config.layer_number}L, {model_config.head_number}H\n")
+        f.write("Iteration,Training_Loss,Validation_Loss\n")
+
     def callback(iteration: int, loss: float):
-        training_loss = loss.item() if hasattr(loss, 'item') else loss 
+        training_loss = loss.item() if hasattr(loss, 'item') else loss
+        progress.update(task_id, completed=iteration)
+        validation_loss = 0
 
         if iteration % 1000 == 0:
             model.eval()
             total_loss = 0
-
             with torch.no_grad():
-                for batch in validation_dataloader:
-                    inputs = batch["input_ids"][:, :-1].to(model_config.device)
-                    targets = batch["input_ids"][:, 1:].to(model_config.device)
-                    validation_logits = model(inputs)
-                    total_loss += loss_fn(validation_logits.view(-1, validation_logits.size(-1)), targets.view(-1))
-
+                val_iter = iter(validation_dataloader)
+                for _ in range(evaluation_iterations):
+                    try:
+                        inputs, targets = next(val_iter)
+                    except StopIteration:
+                        break
+                    inputs, targets = inputs.to(training_config.device), targets.to(training_config.device)
+                    logits = model(inputs)
+                    total_loss += loss_fn(logits.view(-1, logits.size(-1)), targets.view(-1)).item()
             model.train()
-            
-            validation_loss = total_loss / len(validation_dataloader)
-            print(f"Time: {(time.time() - start_time) / 60:3.1f}min | Iter {iteration:5,}/{training_config.max_iterations:5,} | Training Loss: {training_loss:2.4f} | Validation Loss: {validation_loss:.4f}")
-            
-            if iteration % 5000 == 0:
-                save_model(model_config, model, f"models/tiny-llm-iter-{iteration}.pth")
-                
-            return validation_loss < 1.5
-        elif iteration % 200 == 0:
-            print(f"Time: {(time.time() - start_time) / 60:3.1f}min | Iter {iteration:5,}/{training_config.max_iterations:5,} | Training Loss: {training_loss:2.4f}")
+            validation_loss = total_loss / evaluation_iterations
+
+        if iteration % 200 == 0:
+            progress.console.print(f"Time: {(time.time() - start_time) / 60:3.1f}min | Iteration {iteration:,}/{training_config.max_iterations:,} | Training Loss: {training_loss:6.4f} | Validation Loss: {validation_loss:6.4f}")
+            with open(log_file, "a") as f:
+                f.write(f"{iteration},{training_loss:.6f},{validation_loss:.6f}\n")
+
+        if iteration % 5000 == 0:
+            torch.save(model.state_dict(), f"models/tiny-llm-iter-{iteration}.pth")
 
         return False
 
     return callback
 
-def prepare_dataset():
-    print("Preparing dataset...")
-    dataset = load_dataset(dataset_name, dataset_sub, split="train", num_proc=processor_number)
-    split_dataset = dataset.train_test_split(test_size=0.01, shuffle=True)
-    training_dataset = split_dataset["train"]
-    validation_dataset = split_dataset["test"]
-
-    def tokenize(example):
-        return {"input_ids": [tokenizer.encode(text) for text in example["text"]]}
-    
-    training_data_tokenized = training_dataset.map(tokenize, batched=True, num_proc=processor_number, remove_columns=["text"])
-    validation_data_tokenized = validation_dataset.map(tokenize, batched=True, num_proc=processor_number, remove_columns=["text"])
-
-    def group_texts(examples):
-        concatenated = {k: sum(examples[k], []) for k in examples.keys()}
-        total_length = len(concatenated["input_ids"])
-        total_length = (total_length // model_config.block_size) * model_config.block_size
-        result = {
-            k: [t[i:i+model_config.block_size] for i in range(0, total_length, model_config.block_size)]
-            for k, t in concatenated.items()
-        }
-        result["labels"] = result["input_ids"].copy()
-        return result
-    
-    training_data_chunked = training_data_tokenized.map(group_texts, batched=True, remove_columns=training_data_tokenized.column_names, num_proc=processor_number)
-    validation_data_chunked = validation_data_tokenized.map(group_texts, batched=True, remove_columns=training_data_tokenized.column_names, num_proc=processor_number)
-
-    training_data_chunked.save_to_disk(f"data/{dataset_name}-{dataset_sub}-training-tokenized")
-    validation_data_chunked.save_to_disk(f"data/{dataset_name}-{dataset_sub}-validation-tokenized")
-
 def train():
     print("Loading dataset...")
-    training_dataset = load_from_disk(f"data/{dataset_name}-{dataset_sub}-training-tokenized")
-    validation_dataset = load_from_disk(f"data/{dataset_name}-{dataset_sub}-validation-tokenized")
-
-    training_dataset.set_format(type="torch", columns=["input_ids"])
-    validation_dataset.set_format(type="torch", columns=["input_ids"])
-
-    training_dataloader = DataLoader(training_dataset, batch_size=batch_size, shuffle=True, num_workers=0, pin_memory=torch.cuda.is_available())
-    validation_dataloader = DataLoader(validation_dataset, batch_size=batch_size, shuffle=True, num_workers=0, pin_memory=torch.cuda.is_available())
+    training_dataloader, validation_dataloader = load_text_dataset(dataset_name, dataset_sub, batch_size, processor_number)
 
     print("Compiling model...")
     model = create_model(model_config, tokenizer.vocabulary_size)
     model = torch.compile(model)
     
+    callback = create_training_callback(model_config, training_config, model, validation_dataloader)
+
     print(f"Training model...")
     start_time = time.time()
-    callback = create_training_callback(model_config, training_config, model, validation_dataloader)
+
+    progress.start()
     train_model(model, training_config, training_dataloader, callback)
+    progress.stop()
 
     print(f"Model trained in {(time.time() - start_time) / 60:.2f} minutes. Saving...")
     save_model(model_config, model, "models/tiny-llm.pth")
 
 def test():
+    print("Loading model...")
     model = load_model(model_config, tokenizer, "models/tiny-llm.pth")
     model.eval()
 
+    print("Generating text...")
     generated_text = generate_text(model, tokenizer, "The Titanic ", generation_config)
     print(f"Generated:\n\n{generated_text}")
 
 if __name__ == "__main__":
     try:
-        # prepare_dataset()
+        # download_text_dataset(dataset_name, dataset_sub, tokenizer, model_config, processor_number)
         train()
         test()
     except KeyboardInterrupt:

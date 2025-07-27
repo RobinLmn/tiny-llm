@@ -96,7 +96,8 @@ class Transformer(nn.Module):
         self.embeddings = Embeddings(vocabulary_size, config.embedding_dimension, config.block_size)
         self.dropout = nn.Dropout(config.dropout)
         self.transformer_blocks = nn.ModuleList([
-            TransformerBlock(config.embedding_dimension, config.head_number, config.hidden_dimension, config.dropout, config.block_size) for _ in range(config.layer_number)
+            TransformerBlock(config.embedding_dimension, config.head_number, config.hidden_dimension, config.dropout, config.block_size) 
+            for _ in range(config.layer_number)
         ])
         self.normalization_layer = nn.LayerNorm(config.embedding_dimension)
         self.output_projection = nn.Linear(config.embedding_dimension, vocabulary_size, bias=False)

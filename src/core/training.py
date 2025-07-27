@@ -32,10 +32,8 @@ def train_model(model: nn.Module, config: TrainingConfig, dataloader: DataLoader
         optimizer.zero_grad()
         
         for _ in range(config.gradient_accumulation_steps):
-            batch = next(iter(dataloader))
-            
-            inputs = batch["input_ids"][:, :-1].to(config.device)
-            targets = batch["input_ids"][:, 1:].to(config.device)
+            inputs, targets = next(iter(dataloader))
+            inputs, targets = inputs.to(config.device), targets.to(config.device)
 
             with torch.autocast('cuda', dtype=torch.bfloat16):
                 logits = model(inputs)
