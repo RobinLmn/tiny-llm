@@ -33,11 +33,11 @@ generation_config = GenerationConfig(
     device=device,
 )
 model_config = ModelConfig(
-    embedding_dimension=768,
-    block_size=1024,
-    layer_number=12,
-    head_number=12,
-    hidden_dimension=4*768,
+    embedding_dimension=512,
+    block_size=512,
+    layer_number=8,
+    head_number=8,
+    hidden_dimension=4*512,
     dropout=0.1,
     device=device,
 )
