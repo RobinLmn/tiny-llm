@@ -67,7 +67,7 @@ class WordTokenizer(CustomTokenizer):
         return ' '.join([self.inverted_vocabulary[token] for token in tokens])
 
 class SubWordTokenizer(Tokenizer):
-    def __init__(self, encoding : str = "cl100k_base"):
+    def __init__(self, encoding: str):
         self.encoder = tiktoken.get_encoding(encoding)
 
     def encode(self, text: str) -> List[int]:
