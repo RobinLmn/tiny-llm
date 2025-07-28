@@ -1,4 +1,3 @@
-import os
 import time
 import torch
 import torch.nn as nn
@@ -10,8 +9,6 @@ from core.tokenizer import SubWordTokenizer
 from core.training import TrainingConfig, train_model
 from core.utils import save_model, load_model
 from core.dataset import download_text_dataset, load_text_dataset
-
-os.makedirs("models", exist_ok=True)
 
 log_file = "models/logs.txt"
 dataset_name = "wikitext"
@@ -37,7 +34,7 @@ generation_config = GenerationConfig(
 )
 model_config = ModelConfig(
     embedding_dimension=512,
-    block_size=1024,
+    block_size=512,
     layer_number=8,
     head_number=8,
     hidden_dimension=4*512,
@@ -58,7 +55,7 @@ progress = Progress(
     expand=True
 )
 
-def create_training_callback(model_config, training_config, model: nn.Module, validation_dataloader, log_file="training.log", evaluation_iterations=5):
+def create_training_callback(model_config, training_config, model: nn.Module, validation_dataloader, evaluation_iterations=5):
     loss_fn = nn.CrossEntropyLoss()
     task_id = progress.add_task("Training", total=training_config.max_iterations)
 
@@ -66,10 +63,13 @@ def create_training_callback(model_config, training_config, model: nn.Module, va
         f.write(f"Model config: {model_config.embedding_dimension}d, {model_config.layer_number}L, {model_config.head_number}H\n")
         f.write("Iteration,Training_Loss,Validation_Loss\n")
 
+    validation_loss = 0
+
     def callback(iteration: int, loss: float):
-        training_loss = loss.item() if hasattr(loss, 'item') else loss
-        progress.update(task_id, completed=iteration)
-        validation_loss = 0
+        nonlocal validation_loss
+
+        if iteration % 10 == 0:
+            progress.update(task_id, completed=iteration)
 
         if iteration % 1000 == 0:
             model.eval()
@@ -88,10 +88,11 @@ def create_training_callback(model_config, training_config, model: nn.Module, va
             validation_loss = total_loss / evaluation_iterations
 
         if iteration % 200 == 0:
+            training_loss = loss.item() if hasattr(loss, 'item') else loss
             progress.console.print(f"Time: {(time.time() - start_time) / 60:3.1f}min | Iteration {iteration:,}/{training_config.max_iterations:,} | Training Loss: {training_loss:6.4f} | Validation Loss: {validation_loss:6.4f}")
             with open(log_file, "a") as f:
                 f.write(f"{iteration},{training_loss:.6f},{validation_loss:.6f}\n")
-
+                
         if iteration % 5000 == 0:
             torch.save(model.state_dict(), f"models/tiny-llm-iter-{iteration}.pth")
 
@@ -134,4 +135,5 @@ if __name__ == "__main__":
         train()
         test()
     except KeyboardInterrupt:
+        progress.stop()
         print("Shutting down...")
