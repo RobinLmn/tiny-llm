@@ -2,6 +2,7 @@ import time
 import torch
 import torch.nn as nn
 from rich.progress import Progress, TimeRemainingColumn, BarColumn, TextColumn, MofNCompleteColumn
+from rich.console import Console
 
 from core.generation import GenerationConfig, generate_text
 from core.model import ModelConfig, create_model
@@ -10,11 +11,11 @@ from core.training import TrainingConfig, train_model
 from core.utils import save_model, load_model
 from core.dataset import download_text_dataset, load_text_dataset
 
-log_file = "models/logs.txt"
+output_dir = "models/tiny"
 dataset_name = "wikitext"
 dataset_sub = "wikitext-103-v1"
 processor_number = 4
-evaluation_iterations = 200
+evaluation_iterations = 5
 device=torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 batch_size = 8
 training_config = TrainingConfig(
@@ -44,22 +45,13 @@ model_config = ModelConfig(
 
 start_time = time.time()
 tokenizer = SubWordTokenizer("gpt2")
-progress = Progress(
-    TextColumn("[bold blue]Training", justify="right"),
-    BarColumn(bar_width=None),
-    "[progress.percentage]{task.percentage:>3.1f}%",
-    "•",
-    MofNCompleteColumn(),
-    "•",
-    TimeRemainingColumn(),
-    expand=True
-)
 
-def create_training_callback(model_config, training_config, model: nn.Module, validation_dataloader, evaluation_iterations=5):
+def create_training_callback(model_config, training_config, model: nn.Module, validation_dataloader, progress):
     loss_fn = nn.CrossEntropyLoss()
     task_id = progress.add_task("Training", total=training_config.max_iterations)
+    log_file = output_dir + "/logs.txt"
 
-    with open(log_file, "w") as f:
+    with open(log_file, "a") as f:
         f.write(f"Model config: {model_config.embedding_dimension}d, {model_config.layer_number}L, {model_config.head_number}H\n")
         f.write("Iteration,Training_Loss,Validation_Loss\n")
 
@@ -94,35 +86,49 @@ def create_training_callback(model_config, training_config, model: nn.Module, va
                 f.write(f"{iteration},{training_loss:.6f},{validation_loss:.6f}\n")
                 
         if iteration % 5000 == 0:
-            torch.save(model.state_dict(), f"models/tiny-llm-iter-{iteration}.pth")
+            torch.save(model.state_dict(), f"{output_dir}/tiny-llm-iter-{iteration}.pth")
 
         return False
 
     return callback
 
-def train():
+def train(model: nn.Module):
     print("Loading dataset...")
     training_dataloader, validation_dataloader = load_text_dataset(dataset_name, dataset_sub, batch_size, processor_number)
 
     print("Compiling model...")
-    model = create_model(model_config, tokenizer.vocabulary_size)
     model = torch.compile(model)
-    
-    callback = create_training_callback(model_config, training_config, model, validation_dataloader)
+
+    progress = Progress(
+        TextColumn("[bold blue]Training", justify="right"),
+        BarColumn(bar_width=None),
+        "[progress.percentage]{task.percentage:>3.1f}%",
+        "•",
+        MofNCompleteColumn(),
+        "•",
+        TimeRemainingColumn(),
+        console=Console(width=120)
+    )
+
+    callback = create_training_callback(model_config, training_config, model, validation_dataloader, progress)
 
     print(f"Training model...")
     start_time = time.time()
 
     progress.start()
-    train_model(model, training_config, training_dataloader, callback)
-    progress.stop()
+    
+    try:
+        train_model(model, training_config, training_dataloader, callback=callback)
+    except KeyboardInterrupt:
+        progress.stop()
+        raise KeyboardInterrupt("Training interrupted.")
 
     print(f"Model trained in {(time.time() - start_time) / 60:.2f} minutes. Saving...")
-    save_model(model_config, model, "models/tiny-llm.pth")
+    save_model(model_config, model, f"{output_dir}/tiny-llm.pth")
 
 def test():
     print("Loading model...")
-    model = load_model(model_config, tokenizer, "models/tiny-llm.pth")
+    model = load_model(model_config, tokenizer, f"{output_dir}/tiny-llm.pth")
     model.eval()
 
     print("Generating text...")
@@ -130,10 +136,14 @@ def test():
     print(f"Generated:\n\n{generated_text}")
 
 if __name__ == "__main__":
+    # download_text_dataset(dataset_name, dataset_sub, output_dir, processor_number)
+
+    model = create_model(model_config, tokenizer.vocabulary_size)
+    # model = load_model(model_config, tokenizer, model_filename)
+    
     try:
-        # download_text_dataset(dataset_name, dataset_sub, tokenizer, model_config, processor_number)
-        train()
+        train(model)
         test()
     except KeyboardInterrupt:
-        progress.stop()
-        print("Shutting down...")
+        print("Training interrupted. Shutting down...")
+

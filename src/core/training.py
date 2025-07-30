@@ -18,7 +18,7 @@ class TrainingConfig:
     gradient_accumulation_steps: int
     device: torch.device
 
-def train_model(model: nn.Module, config: TrainingConfig, dataloader: DataLoader, training_callback: Optional[Callable[[int, float], bool]] = None):
+def train_model(model: nn.Module, config: TrainingConfig, dataloader: DataLoader, start_iteration: int = 0, callback: Optional[Callable[[int, float], bool]] = None):
     torch.backends.cuda.matmul.allow_tf32 = True
     torch.backends.cudnn.allow_tf32 = True
 
@@ -28,7 +28,10 @@ def train_model(model: nn.Module, config: TrainingConfig, dataloader: DataLoader
     loss_fn = nn.CrossEntropyLoss()
     model.train()
     
-    for iteration in range(config.max_iterations):
+    for _ in range(start_iteration):
+        scheduler.step()
+
+    for iteration in range(start_iteration, config.max_iterations):
         optimizer.zero_grad()
         
         for _ in range(config.gradient_accumulation_steps):
@@ -50,7 +53,7 @@ def train_model(model: nn.Module, config: TrainingConfig, dataloader: DataLoader
         scaler.update()
         scheduler.step()
 
-        if training_callback is not None:
-            should_stop = training_callback(iteration, loss * config.gradient_accumulation_steps)
+        if callback is not None:
+            should_stop = callback(iteration, loss * config.gradient_accumulation_steps)
             if should_stop:
                 break
