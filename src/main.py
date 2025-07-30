@@ -86,7 +86,7 @@ def create_training_callback(model_config, training_config, model: nn.Module, va
                 f.write(f"{iteration},{training_loss:.6f},{validation_loss:.6f}\n")
                 
         if iteration % 5000 == 0:
-            torch.save(model.state_dict(), f"{output_dir}/tiny-llm-iter-{iteration}.pth")
+            save_model(model_config, model, f"{output_dir}/tiny-llm-iter-{iteration}.pth")
 
         return False
 
@@ -126,9 +126,7 @@ def train(model: nn.Module):
     print(f"Model trained in {(time.time() - start_time) / 60:.2f} minutes. Saving...")
     save_model(model_config, model, f"{output_dir}/tiny-llm.pth")
 
-def test():
-    print("Loading model...")
-    model = load_model(model_config, tokenizer, f"{output_dir}/tiny-llm.pth")
+def test(model: nn.Module):
     model.eval()
 
     print("Generating text...")
@@ -138,12 +136,12 @@ def test():
 if __name__ == "__main__":
     # download_text_dataset(dataset_name, dataset_sub, output_dir, processor_number)
 
-    model = create_model(model_config, tokenizer.vocabulary_size)
-    # model = load_model(model_config, tokenizer, model_filename)
+    # model = create_model(model_config, tokenizer.vocabulary_size)
+    model = load_model(model_config, tokenizer, f"{output_dir}/tiny-llm-iter-5000.pth")
     
     try:
-        train(model)
-        test()
+        # train(model)
+        test(model)
     except KeyboardInterrupt:
         print("Training interrupted. Shutting down...")
 
