@@ -1,4 +1,5 @@
 import torch
+import os
 from torch.utils.data import Dataset, DataLoader
 from datasets import load_dataset, load_from_disk
 from typing import Tuple
@@ -58,3 +59,8 @@ def load_text_dataset(dataset_name: str,dataset_sub: str, batch_size: int, num_w
     validation_dataloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers, pin_memory=torch.cuda.is_available())
 
     return training_dataloader, validation_dataloader
+
+def dataset_exists(dataset_name: str, dataset_sub: str) -> bool:
+    training_path = f"data/{dataset_name}-{dataset_sub}-training-tokenized"
+    validation_path = f"data/{dataset_name}-{dataset_sub}-validation-tokenized"
+    return os.path.exists(training_path) and os.path.exists(validation_path)

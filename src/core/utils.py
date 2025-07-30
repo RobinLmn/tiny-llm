@@ -13,11 +13,15 @@ def save_model(config: ModelConfig, model: nn.Module, filename: str):
 
 def load_model(config: ModelConfig, tokenizer: Tokenizer, filename: str) -> nn.Module:
     saved_model = torch.load(filename, weights_only=False)
-    for key, value in saved_model['config'].items():
-        setattr(config, key, value)
+    
+    if 'config' in saved_model:
+        for key, value in saved_model['config'].items():
+            setattr(config, key, value)
+        state_dict = saved_model['model_state_dict']
+    else:
+        state_dict = saved_model
     
     model = create_model(config, tokenizer.vocabulary_size)
-    state_dict = saved_model['model_state_dict']
     try:
         model.load_state_dict(state_dict)
     except RuntimeError:

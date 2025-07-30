@@ -9,8 +9,9 @@ from core.model import ModelConfig, create_model
 from core.tokenizer import SubWordTokenizer
 from core.training import TrainingConfig, train_model
 from core.utils import save_model, load_model
-from core.dataset import download_text_dataset, load_text_dataset
+from core.dataset import download_text_dataset, load_text_dataset, dataset_exists
 
+start_iteration = 5000
 output_dir = "models/tiny"
 dataset_name = "wikitext"
 dataset_sub = "wikitext-103-v1"
@@ -46,20 +47,25 @@ model_config = ModelConfig(
 start_time = time.time()
 tokenizer = SubWordTokenizer("gpt2")
 
-def create_training_callback(model_config, training_config, model: nn.Module, validation_dataloader, progress):
+def create_training_callback(model_config, training_config, model: nn.Module, validation_dataloader, progress: Progress, start_iteration: int = 0):
     loss_fn = nn.CrossEntropyLoss()
     task_id = progress.add_task("Training", total=training_config.max_iterations)
     log_file = output_dir + "/logs.txt"
 
-    with open(log_file, "a") as f:
-        f.write(f"Model config: {model_config.embedding_dimension}d, {model_config.layer_number}L, {model_config.head_number}H\n")
-        f.write("Iteration,Training_Loss,Validation_Loss\n")
+    if start_iteration == 0:
+        with open(log_file, "a") as f:
+            f.write(f"Model config: {model_config.embedding_dimension}d, {model_config.layer_number}L, {model_config.head_number}H\n")
+            f.write("Iteration,Training_Loss,Validation_Loss\n")
 
     validation_loss = 0
 
     def callback(iteration: int, loss: float):
         nonlocal validation_loss
 
+        if iteration == start_iteration:
+            progress.update(task_id, completed=iteration)
+            return False
+        
         if iteration % 10 == 0:
             progress.update(task_id, completed=iteration)
 
@@ -92,7 +98,7 @@ def create_training_callback(model_config, training_config, model: nn.Module, va
 
     return callback
 
-def train(model: nn.Module):
+def train(model: nn.Module, start_iteration: int = 0):
     print("Loading dataset...")
     training_dataloader, validation_dataloader = load_text_dataset(dataset_name, dataset_sub, batch_size, processor_number)
 
@@ -110,7 +116,7 @@ def train(model: nn.Module):
         console=Console(width=120)
     )
 
-    callback = create_training_callback(model_config, training_config, model, validation_dataloader, progress)
+    callback = create_training_callback(model_config, training_config, model, validation_dataloader, progress, start_iteration)
 
     print(f"Training model...")
     start_time = time.time()
@@ -118,7 +124,7 @@ def train(model: nn.Module):
     progress.start()
     
     try:
-        train_model(model, training_config, training_dataloader, callback=callback)
+        train_model(model, training_config, training_dataloader, start_iteration=start_iteration, callback=callback)
     except KeyboardInterrupt:
         progress.stop()
         raise KeyboardInterrupt("Training interrupted.")
@@ -134,14 +140,18 @@ def test(model: nn.Module):
     print(f"Generated:\n\n{generated_text}")
 
 if __name__ == "__main__":
-    # download_text_dataset(dataset_name, dataset_sub, output_dir, processor_number)
+    if not dataset_exists(dataset_name, dataset_sub): 
+        download_text_dataset(dataset_name, dataset_sub, tokenizer, model_config, processor_number)
 
-    # model = create_model(model_config, tokenizer.vocabulary_size)
-    model = load_model(model_config, tokenizer, f"{output_dir}/tiny-llm-iter-5000.pth")
+    if start_iteration == 0:
+        print("Creating model...")
+        model = create_model(model_config, tokenizer.vocabulary_size)
+    else:
+        print("Loading checkpoint...")
+        model = load_model(model_config, tokenizer, f"{output_dir}/tiny-llm-iter-{start_iteration}.pth")
     
     try:
-        # train(model)
+        train(model, start_iteration)
         test(model)
     except KeyboardInterrupt:
         print("Training interrupted. Shutting down...")
-
