@@ -4,7 +4,7 @@ This project implements a minimal Large Language Model (LLM) using PyTorch. It i
 
 ## Results
 
-With ~51.2M parameters, we converge to a validation loss of 3.5 and perplexity of 34 on WikiText-103 after 50,000 iterations.
+With ~51.2M parameters, the model converges to a validation loss of 3.5 and perplexity of 34 on WikiText-103 after 50,000 iterations.
 
 <div align="center">
 <img src="docs/tiny_llm_wt103_loss.png" width="600px" alt="Training Progress">
@@ -84,7 +84,7 @@ pip install -r requirements.txt
 ### Training
 
 ```bash
-python [src/main.py](src/main.py)
+python src/main.py
 ```
 
 The training script automatically handles dataset download, tokenization, and model checkpointing every 5,000 iterations to `models/tiny/`.
