@@ -12,11 +12,11 @@ With ~51.2M parameters, we converge to a validation loss of 3.5 and perplexity o
 
 Example of generated text:
 
-```
-World War II was a global conflict of interest since it did not have the support of many major political parties such as the National Socialist Workers' Union for Germany, the Social Workers' Union for the United Nations and the United Nations, and the Warsaw Pact. The war was the setting for the war and the installation of a national election. The war was not resolved until the end of World War II, when the Soviet Union had already begun to face a crisis.
-= = = Critical reception = = =
-After the war, the Navy adopted the National Guard as its Director of Naval Artillery. It was replaced by the Army of the Navy's Navy, and was reduced to a Navy Reserve Training class, a naval career in the Navy Reserve. In 1946, the Navy was renamed the Navy Reserve Service Medal, with the Navy's rank of major. She was reclassified as a ship on 1 July 1947, and was renamed to the Navy Reserve Service Medal. In 1949, she was converted into a storage hulk for the Navy's Army Reserve Fleet, and renamed to the Naval Reserve Fleet. She was converted into an aircraft carrier in 1950.
-```
+> World War II was a global conflict of interest since it did not have the support of many major political parties such as the National Socialist Workers' Union for Germany, the Social Workers' Union for the United Nations and the United Nations, and the Warsaw Pact. The war was the setting for the war and the installation of a national election. The war was not resolved until the end of World War II, when the Soviet Union had already begun to face a crisis.
+>
+> = = = Critical reception = = =
+> 
+> After the war, the Navy adopted the National Guard as its Director of Naval Artillery. It was replaced by the Army of the Navy's Navy, and was reduced to a Navy Reserve Training class, a naval career in the Navy Reserve. In 1946, the Navy was renamed the Navy Reserve Service Medal, with the Navy's rank of major. She was reclassified as a ship on 1 July 1947, and was renamed to the Navy Reserve Service Medal. In 1949, she was converted into a storage hulk for the Navy's Army Reserve Fleet, and renamed to the Naval Reserve Fleet. She was converted into an aircraft carrier in 1950.
 
 ## Architecture
 
