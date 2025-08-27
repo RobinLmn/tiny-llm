@@ -55,7 +55,7 @@ def create_training_callback(model_config, training_config, model: nn.Module, va
     if start_iteration == 0:
         with open(log_file, "a") as f:
             f.write(f"Model config: {model_config.embedding_dimension}d, {model_config.layer_number}L, {model_config.head_number}H\n")
-            f.write("Iteration,Training_Loss,Validation_Loss\n")
+            f.write("Iteration,Training_Loss,Validation_Loss,Perplexity\n")
 
     validation_loss = 0
 
@@ -84,12 +84,13 @@ def create_training_callback(model_config, training_config, model: nn.Module, va
                     total_loss += loss_fn(logits.view(-1, logits.size(-1)), targets.view(-1)).item()
             model.train()
             validation_loss = total_loss / evaluation_iterations
+            perplexity = torch.exp(torch.tensor(validation_loss))
 
         if iteration % 200 == 0:
             training_loss = loss.item() if hasattr(loss, 'item') else loss
             progress.console.print(f"Time: {(time.time() - start_time) / 60:3.1f}min | Iteration {iteration:,}/{training_config.max_iterations:,} | Training Loss: {training_loss:6.4f} | Validation Loss: {validation_loss:6.4f}")
             with open(log_file, "a") as f:
-                f.write(f"{iteration},{training_loss:.6f},{validation_loss:.6f}\n")
+                f.write(f"{iteration},{training_loss:.6f},{validation_loss:.6f},{perplexity}\n")
                 
         if iteration % 5000 == 0:
             save_model(model_config, model, f"{output_dir}/tiny-llm-iter-{iteration}.pth")
